@@ -1,6 +1,8 @@
 import java.util.*;
 import java.util.Date;
 
+import org.postgresql.shaded.com.ongres.scram.common.bouncycastle.pbkdf2.Integers;
+
 // import org.postgresql.shaded.com.ongres.stringprep.StringPrep;
 // import org.postgresql.ssl.SingleCertValidatingFactory.SingleCertTrustManager;
 
@@ -99,7 +101,6 @@ public class connection {
                 } 
                 else 
                 {
-                    System.out.println("ticket");
                     // ticket booking
                     String[] words = data.split("\\s");
 
@@ -161,6 +162,7 @@ public class connection {
                         continue;
                     }
 
+
                     String query_ticket = "SELECT create_ticket( '" + DOJ + "', " + numofpeople + ", " + trainNo + ", '"
                     + coachType + "');";
                     rs = st.executeQuery(query_ticket);
@@ -170,6 +172,9 @@ public class connection {
                     {
                         pNR = rs.getString(1);
                     }
+                    
+                    String[] printing_ticket = new String[7*numofpeople+1];
+                    printing_ticket[0] = pNR;
 
                     for (i = 1; i <= numofpeople; i++) 
                     {
@@ -177,22 +182,52 @@ public class connection {
                         {
                             int berthNo = (i + seats_avaiable) % 18;
                             int coachNo = (i + seats_avaiable) / 18 + 1;
-
-                            String berthType = AcCoach[berthNo];
+                            
+                            // String berthType = AcCoach[berthNo];
                             String query_passenger = "SELECT adding_passenger( '" + DOJ + "', '" + pNR + "', " + berthNo + ",'AC', " + coachNo + ", " + trainNo + ",'" + names[i - 1] + "');";
                             st.executeQuery(query_passenger);
-                            System.out.println(query_passenger);
+                            // System.out.println(query_passenger);
+
+                            printing_ticket[(i-1)*7 + 1] = names[i-1];
+                            printing_ticket[(i-1)*7 + 2] = Integer.toString(berthNo);
+                            printing_ticket[(i-1)*7 + 3] = AcCoach[berthNo];
+                            printing_ticket[(i-1)*7 + 4] = "AC";
+                            printing_ticket[(i-1)*7 + 5] = Integer.toString(coachNo);
+                            printing_ticket[(i-1)*7 + 6] = Integer.toString(trainNo);
+                            printing_ticket[(i-1)*7 + 7] = DOJ;
+                            
+                            // name berthNo berthType coachType coachNo trainNo date 
                         } 
                         else 
                         {
                             int berthNo = (i + seats_avaiable) % 24;
                             int coachNo = (i + seats_avaiable) / 24 + 1;
 
-                            String berthType = SlCoach[berthNo];
                             String query_passenger = "SELECT adding_passenger( '" + DOJ + "','" + pNR + "', " + berthNo + ", 'AC', " + coachNo + ", " + trainNo + ",'" + names[i - 1] + "');";
                             st.executeQuery(query_passenger);
                             // System.out.println(query_passenger);
+
+                            printing_ticket[(i-1)*7 + 1] = names[i-1];
+                            printing_ticket[(i-1)*7 + 2] = Integer.toString(berthNo);
+                            printing_ticket[(i-1)*7 + 3] = SlCoach[berthNo];
+                            printing_ticket[(i-1)*7 + 4] = "SL";
+                            printing_ticket[(i-1)*7 + 5] = Integer.toString(coachNo);
+                            printing_ticket[(i-1)*7 + 6] = Integer.toString(trainNo);
+                            printing_ticket[(i-1)*7 + 7] = DOJ;
+
                         }
+                    }
+
+                    System.out.println("Ticket Booked with " + pNR + "");
+                    for(int j=1; j <= 7*numofpeople; )
+                    {
+                        System.out.print("\tName: " + printing_ticket[j++]);
+                        System.out.print("\tBerth No: " + printing_ticket[j++]);
+                        System.out.println("\tBerth Type: " + printing_ticket[j++]);
+                        System.out.print("\tCoach Type: " + printing_ticket[j++]);
+                        System.out.println("\tCoach No: " + printing_ticket[j++]);
+                        System.out.print("\tTrain No: " + printing_ticket[j++]);
+                        System.out.println("\tDate: " + printing_ticket[j++] + "\n");
                     }
 
                 }
