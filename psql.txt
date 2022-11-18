@@ -1,5 +1,5 @@
 -- All the psql code is here.
-
+ALTER DATABASE postgres SET DEFAULT_TRANSACTION_ISOLATION to 'serializable';
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
