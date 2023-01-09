@@ -1,0 +1,193 @@
+
+-- Function for adding table for trains
+CREATE OR REPLACE FUNCTION add_train (trainNo INTEGER)
+  RETURNS VOID
+language plpgsql
+AS 
+$$
+DECLARE
+  execQuery1 VARCHAR(200);
+  execQuery2 VARCHAR(200);
+BEGIN
+  execQuery1 = 'CREATE TABLE train_' || trainNo || '(dOJ date NOT NULL, acCoaches integer NOT NULL, slCoaches integer NOT NULL,seatAc integer NOT NULL,seatSl integer NOT NULL,trainNo integer NOT NULL,primary key (dOJ));';
+  execQuery2 = 'INSERT INTO train_running VALUES ( ' || trainNo || ');';
+  EXECUTE execQuery1;
+  EXECUTE execQuery2;
+  -- raise notice 'Train % added to sql.', trainNo;
+  RETURN;
+END;
+$$;
+
+
+-- Function for checking whether train table is there or not
+CREATE OR REPLACE FUNCTION train_present_check(trainNo INTEGER)
+  RETURNS INTEGER
+language plpgsql
+AS
+$$
+DECLARE
+  is_present INTEGER;
+  execQuery VARCHAR(200);
+BEGIN 
+  execQuery = 'SELECT count(*) FROM train_running AS t WHERE t.trainNo = ' || trainNo || ';';
+  EXECUTE execQuery INTO is_present;
+  
+  RETURN is_present;
+END;
+$$;
+
+
+-- Function for adding journey of a trains
+CREATE OR REPLACE FUNCTION add_journey (dOJ DATE, trainNo INTEGER, acCoachNo INTEGER, slCoachNo INTEGER)
+RETURNS VOID
+language plpgsql
+AS
+$$
+DECLARE 
+  seatAc INTEGER := 0;
+  seatSl INTEGER := 0;
+  execQuery VARCHAR(200);
+BEGIN
+
+  seatAc := acCoachNo*18;
+  seatSl := slCoachNo*24;
+  -- raise notice 'Ac: %', seatAc;
+  -- raise notice 'Sl: %', seatSl;
+  execQuery = 'INSERT INTO train_' || trainNo || ' VALUES ( $1, ' || acCoachNo || ', ' || slCoachNo || ', ' || seatAc || ', '  || seatSl || ', ' || trainNo || ');'; 
+  EXECUTE execQuery USING dOJ;
+  -- raise notice 'execQuery is %', execQuery;
+  
+END;
+$$;
+
+
+-- Function for checking whether train is running on particular date
+CREATE OR REPLACE FUNCTION check_journey (actual_DOJ DATE, trainNo INTEGER)
+  RETURNS INTEGER
+language plpgsql
+AS 
+$$
+DECLARE
+  count_t INTEGER;
+  execQuery VARCHAR(200);
+BEGIN
+
+  execQuery =  'SELECT count(*) FROM train_' || trainNo ||  ' as t WHERE t.dOJ = $1;';
+  
+  -- raise notice 'Query: %', execQuery;
+  EXECUTE execQuery USING actual_DOJ INTO count_t;
+  -- raise notice 'Answer: %', count_t;
+  
+  RETURN count_t;
+END;
+$$;
+
+
+-- Function to check whether train has enough seats for booking
+CREATE OR REPLACE FUNCTION is_seats_avaiable(dOJ DATE, trainNo INTEGER, coachType VARCHAR(2), seatNeeded INTEGER)
+  RETURNS INTEGER
+language plpgsql
+AS 
+$$
+DECLARE 
+  
+  seats_avaiable INTEGER := 0;
+  -- coachesCount INTEGER := 0;
+  execQuery1 VARCHAR(200);
+  -- execQuery2 VARCHAR(200);
+  answer INTEGER;
+  
+BEGIN
+    
+  IF coachType = 'AC'
+  THEN
+    -- raise notice 'AC seats needed.';
+    execQuery1 = 'SELECT seatAc FROM train_' || trainNo ||  ' as t WHERE t.dOJ = $1;';
+    -- execQuery2 = 'SELECT acCoaches FROM train_' || trainNo ||  ' as t WHERE t.dOJ = $1;';
+    execQuery3 = 'UPDATE train_' || trainNo || ' AS t'  || ' SET seatAc = seatAc - ' || seatNeeded || ' WHERE t.dOJ = $1 ;';
+  ELSE 
+    -- raise notice 'SL seats needed.';
+    execQuery1 = 'SELECT seatSl FROM train_' || trainNo ||  ' as t WHERE t.dOJ = $1;';
+    -- execQuery2 = 'SELECT slCoaches FROM train_' || trainNo ||  ' as t WHERE t.dOJ = $1;';
+    execQuery3 = 'UPDATE train_' || trainNo || ' AS t'  || ' SET seatSl = seatSl - ' || seatNeeded || ' WHERE t.dOJ = $1;';
+  END IF;
+  
+  EXECUTE execQuery1 USING dOJ INTO seats_avaiable;
+  -- EXECUTE execQuery2 USING dOJ INTO coachesCount;
+  answer := seats_avaiable - seatNeeded;
+  
+  IF answer >= 0 
+  THEN
+    EXECUTE execQuery3 USING DOJ;
+  END IF;
+    
+  
+  -- seats_avaiable := seats_avaiable;
+  
+  -- raise notice 'Seats avaiable are: %', seats_avaiable;
+  -- raise notice 'Total Coaches : %', coachesCount;
+  -- answer := seats_avaiable || ' ' || coachesCount;
+  RETURN  seats_avaiable;
+END;
+$$;
+
+
+
+
+-- Function for creating ticket and updating seats
+CREATE OR REPLACE FUNCTION create_ticket(doJ DATE, totalPass INTEGER, trainNo INTEGER, coachType VARCHAR(2) )
+  RETURNS uuid
+language plpgsql
+AS 
+$$
+DECLARE
+  pNR uuid;
+  execQuery1 VARCHAR (200);
+  execQuery2 VARCHAR (200);
+  execQuery3 VARCHAR (200);
+BEGIN
+
+  execQuery1 = 'SELECT uuid_generate_v4()';
+  EXECUTE execQuery1 INTO pNR;
+  -- raise notice 'pNR: %', pNR;
+  
+  execQuery2 = 'INSERT INTO ticket VALUES ( $2:: uuid, ' || totalPass || ', ' || trainNo || ', $1 );';
+  
+  
+  -- IF coachType = 'AC'
+  -- THEN
+  --   -- raise notice 'Updating AC seats.';
+  --   execQuery3 = 'UPDATE train_' || trainNo || ' AS t'  || ' SET seatAc = seatAc - ' || totalPass || ' WHERE t.dOJ = $1 ;';
+  -- ELSE 
+  --   -- raise notice 'Updating SL seats.';
+  --   execQuery3 = 'UPDATE train_' || trainNo || ' AS t'  || ' SET seatSl = seatSl - ' || totalPass || ' WHERE t.dOJ = $1;';
+  -- END IF;
+  
+  EXECUTE execQuery2 USING  dOJ, pNR;
+  -- raise notice 'Running Query 2: %', execQuery2;
+  
+  -- EXECUTE execQuery3 USING dOJ;
+  -- raise notice 'Running Query 3: %', execQuery3;
+  
+  
+  return pNR;
+END;
+$$;
+
+
+-- Function for adding passenger data into passenger table;
+CREATE OR REPLACE FUNCTION adding_passenger( dOJ  DATE, pNR uuid, berthNo INTEGER, coachType VARCHAR(2), coachNo INTEGER, trainNo INTEGER,name VARCHAR(20) )
+RETURNS VOID
+language plpgsql
+AS
+$$
+DECLARE 
+  execQuery VARCHAR(300);
+BEGIN
+  execQuery := 'INSERT INTO passenger VALUES ( $1::uuid, ' || berthNo || ',' || coachNo || ', $2, ' || trainNo || ', $3, $4 );';
+  -- raise notice 'Query is: %',execQuery; 
+  EXECUTE execQuery USING pNR, coachType, dOJ, name;
+END;
+$$;
+
+
