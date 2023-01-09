@@ -1,0 +1,32 @@
+-- All the psql code is here.
+ALTER DATABASE postgres SET DEFAULT_TRANSACTION_ISOLATION to 'serializable';
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE train_running
+(
+  trainNo INTEGER PRIMARY KEY
+);
+
+CREATE TABLE ticket
+(
+  pNR       uuid    NOT NULL PRIMARY KEY,
+  totalPass INTEGER NOT NULL,
+  trainNo   INTEGER NOT NULL, 
+  dOJ       DATE    NOT NULL
+);
+
+CREATE TABLE passenger(
+  pNR       uuid          NOT NULL,
+  berthNo   INTEGER       NOT NULL,
+  coachNo   INTEGER       NOT NULL,
+  coachType VARCHAR(2)       NOT NULL,
+  trainNo   INTEGER       NOT NULL,
+  dOJ       DATE          NOT NULL,
+  name      VARCHAR(20)   NOT NULL,
+  -- gender    VARCHAR(10), 
+  -- age       INTEGER,
+  
+  PRIMARY KEY (berthNo, coachNo, trainNo, dOJ),
+  FOREIGN KEY (pNR) REFERENCES ticket(pNR)
+);
